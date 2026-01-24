@@ -1,0 +1,62 @@
+name: Build Pico W Firmware with ST7789
+
+# 觸發條件：手動點擊按鈕觸發
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 準備編譯環境 (安裝 ARM GCC 工具鏈)
+    - name: Install Arm GNU Toolchain
+      uses: check-spelling-bot/arm-none-eabi-gcc@v1
+      with:
+        release: '13.2.rel1' # 指定穩定版本
+
+    - name: Install CMake and Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    # 2. 下載 MicroPython 原始碼
+    - name: Checkout MicroPython
+      uses: actions/checkout@v4
+      with:
+        repository: micropython/micropython
+        ref: master # 或是指定版本標籤，如 'v1.24.0'
+        path: micropython
+        submodules: false # 稍後手動處理 submodule 以加速
+
+    # 3. 下載 ST7789 C 模組 (Russhughes)
+    - name: Checkout ST7789 Driver
+      uses: actions/checkout@v4
+      with:
+        repository: russhughes/st7789_mpy
+        path: st7789_mpy
+
+    # 4. 編譯 mpy-cross (MicroPython 的交叉編譯器)
+    - name: Build mpy-cross
+      run: |
+        cd micropython
+        # 只抓取必要的 submodules
+        git submodule update --init lib/pico-sdk lib/cyw43-driver lib/lwip lib/mbedtls lib/micropython-lib lib/tinyusb lib/btstack
+        make -C mpy-cross
+
+    # 5. 編譯 Pico W 韌體 (關鍵步驟)
+    - name: Build Firmware
+      run: |
+        cd micropython/ports/rp2
+        # 清除舊檔
+        make BOARD=RPI_PICO_W clean
+        # 開始編譯，並加入 ST7789 模組
+        # CMODULES 指向我們剛剛下載的 st7789_mpy 資料夾
+        make BOARD=RPI_PICO_W USER_C_MODULES=../../../../st7789_mpy/st7789/micropython.cmake
+
+    # 6. 上傳編譯好的 .uf2 檔案給您下載
+    - name: Upload Firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-pico-w-st7789
+        path: micropython/ports/rp2/build-RPI_PICO_W/firmware.uf2
