@@ -33,20 +33,18 @@ jobs:
       with:
         repository: russhughes/st7789_mpy
         path: st7789_mpy
-
-    # 4. 準備字型檔 (只下載這一個！)
+ 
+    # 4. 準備字型檔 (修正路徑：從 fonts/bitmap 下載 vga2_bold_16x32.py)
     - name: Prepare Single Font
       run: |
-        # 建立一個乾淨的資料夾
         mkdir -p custom_lib
         
-        # 只抓取 vga2_bold_16x32.py 這一個檔案
-        wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
+        # 使用您找到的正確路徑
+        wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/bitmap/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
         
-        # 建立 manifest 清單，只凍結這個資料夾的內容
         echo 'include("$(PORT_DIR)/boards/manifest.py")' > my_manifest.py
         echo 'freeze("${{ github.workspace }}/custom_lib")' >> my_manifest.py
-
+        
     # 5. 編譯 mpy-cross (編譯器)
     - name: Build mpy-cross
       run: |
