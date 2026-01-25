@@ -1,4 +1,4 @@
-name: Build Pico W Firmware with ST7789
+name: Build Pico W Firmware (Driver + 1 Font)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 準備編譯環境 (修正點：使用正確的 Action)
+    # 1. 安裝編譯工具
     - name: Install Arm GNU Toolchain
       uses: carlosperate/arm-none-eabi-gcc-action@v1
       with:
@@ -27,33 +27,46 @@ jobs:
         path: micropython
         submodules: false 
 
-    # 3. 下載 ST7789 C 模組 (Russhughes)
+    # 3. 下載 ST7789 驅動 (C 模組)
     - name: Checkout ST7789 Driver
       uses: actions/checkout@v4
       with:
         repository: russhughes/st7789_mpy
         path: st7789_mpy
 
-    # 4. 編譯 mpy-cross
+    # 4. 準備字型檔 (只下載這一個！)
+    - name: Prepare Single Font
+      run: |
+        # 建立一個乾淨的資料夾
+        mkdir -p custom_lib
+        
+        # 只抓取 vga2_bold_16x32.py 這一個檔案
+        wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
+        
+        # 建立 manifest 清單，只凍結這個資料夾的內容
+        echo 'include("$(PORT_DIR)/boards/manifest.py")' > my_manifest.py
+        echo 'freeze("${{ github.workspace }}/custom_lib")' >> my_manifest.py
+
+    # 5. 編譯 mpy-cross (編譯器)
     - name: Build mpy-cross
       run: |
         cd micropython
-        # 抓取必要的 submodules
         git submodule update --init lib/pico-sdk lib/cyw43-driver lib/lwip lib/mbedtls lib/micropython-lib lib/tinyusb lib/btstack
         make -C mpy-cross
 
-    # 5. 編譯 Pico W 韌體 (修正點：使用絕對路徑以避免 ../ 出錯)
+    # 6. 編譯韌體 (驅動 + 指定字型)
     - name: Build Firmware
       run: |
         cd micropython/ports/rp2
         make BOARD=RPI_PICO_W clean
         
-        # 使用 ${{ github.workspace }} 確保路徑絕對正確
-        make BOARD=RPI_PICO_W USER_C_MODULES=${{ github.workspace }}/st7789_mpy/st7789/micropython.cmake
+        make BOARD=RPI_PICO_W \
+             USER_C_MODULES=${{ github.workspace }}/st7789_mpy/st7789/micropython.cmake \
+             FROZEN_MANIFEST=${{ github.workspace }}/my_manifest.py
 
-    # 6. 上傳結果
+    # 7. 上傳結果
     - name: Upload Firmware
       uses: actions/upload-artifact@v4
       with:
-        name: firmware-pico-w-st7789
+        name: firmware-pico-w-st7789-font
         path: micropython/ports/rp2/build-RPI_PICO_W/firmware.uf2
