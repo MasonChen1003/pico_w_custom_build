@@ -41,8 +41,7 @@ jobs:
         
         # 使用您找到的正確路徑
         wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/bitmap/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
-        
-# --- ✨ 關鍵：建立客製化的 _boot.py ---
+        # --- ✨ 關鍵：建立客製化的 _boot.py ---
         # 這個腳本會取代系統預設的，所以必須包含「亮燈」+「掛載硬碟」兩部分
         cat <<EOF > custom_lib/_boot.py
         import gc
