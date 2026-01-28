@@ -41,28 +41,27 @@ jobs:
         
         # 使用您找到的正確路徑
         wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/bitmap/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
-        # --- ✨ 關鍵：建立客製化的 _boot.py ---
-        # 這個腳本會取代系統預設的，所以必須包含「亮燈」+「掛載硬碟」兩部分
-        cat <<EOF > custom_lib/_boot.py
+        # 2. ✨ 關鍵修改：直接覆蓋 MicroPython 原始碼中的 _boot.py
+        # 不要放在 custom_lib，而是直接寫入系統原始路徑
+        
+        cat <<EOF > micropython/ports/rp2/modules/_boot.py
         import gc
         import uos
         import machine
 
-        # 1. 【電源指示燈邏輯】
+        # 【電源指示燈邏輯】
         try:
-            # 針對 Pico W: "LED" 接腳連接到無線晶片，需要一點時間初始化
-            # 設定為 OUT 並輸出 High (亮燈)
+            # Pico W
             machine.Pin("LED", machine.Pin.OUT).value(1)
         except Exception:
-            # 針對一般 Pico: LED 接在 GPIO 25
+            # 一般 Pico
             try:
                 machine.Pin(25, machine.Pin.OUT).value(1)
             except:
                 pass
 
-        # 2. 【系統掛載邏輯】(這段是抄錄官方原始碼，絕對不能少，否則電腦會讀不到板子)
+        # 【系統掛載邏輯】(原廠必要的程式碼)
         try:
-            # 嘗試掛載檔案系統 (LittleFS2)
             bdev = machine.Partition(machine.Partition.FILESYSTEM)
         except OSError:
             import rp2
@@ -72,14 +71,14 @@ jobs:
             vfs = uos.VfsLfs2(bdev)
             uos.mount(vfs, "/")
         except OSError:
-            # 如果失敗，嘗試 fallback 到 FAT (通常是第一次使用時)
             import _boot_fat
             _boot_fat.init(bdev)
 
         gc.collect()
         EOF
 
-        # --- 建立清單 ---
+        # 3. 建立清單
+        # 注意：我們只需要凍結 custom_lib (裡面現在只有字型)，_boot.py 已經在系統預設路徑中了
         echo 'include("$(PORT_DIR)/boards/manifest.py")' > my_manifest.py
         echo 'freeze("${{ github.workspace }}/custom_lib")' >> my_manifest.py
         
