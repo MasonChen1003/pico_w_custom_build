@@ -41,40 +41,40 @@ jobs:
         
         # 使用您找到的正確路徑
         wget https://raw.githubusercontent.com/russhughes/st7789_mpy/master/fonts/bitmap/vga2_bold_16x32.py -O custom_lib/vga2_bold_16x32.py
-        # 2. ✨ 修正版 _boot.py (使用 rp2.Flash)
+        # 2. ✨ 最終版 _boot.py (基於您查到的原始碼 + 亮燈功能)
+        # 直接覆蓋 micropython/ports/rp2/modules/_boot.py
+        
         cat <<EOF > micropython/ports/rp2/modules/_boot.py
-        import gc
-        import uos
+        import vfs
         import machine
         import rp2
 
-        # 【電源指示燈邏輯】
+        # --- 1. 電源指示燈邏輯 (插隊在掛載硬碟前執行) ---
         try:
-            # Pico W: LED 接在無線晶片上
+            # 針對 Pico W (LED 接在無線晶片)
+            # 注意：如果無線晶片還沒 ready，這行可能會失敗，所以用 try 包起來
             machine.Pin("LED", machine.Pin.OUT).value(1)
-        except Exception:
+        except:
             try:
-                # 一般 Pico: LED 接在 GP25
+                # 針對一般 Pico (LED 接在 GPIO 25)
                 machine.Pin(25, machine.Pin.OUT).value(1)
             except:
                 pass
 
-        # 【系統掛載邏輯 - 修正版】
-        # 修正錯誤：AttributeError: 'module' object has no attribute 'Partition'
-        # 改回 RP2040 標準的 rp2.Flash()
+        # --- 2. 系統掛載邏輯 (您的正確代碼) ---
+        # 嘗試掛載檔案系統，如果失敗(例如全新的板子)就格式化
+        bdev = rp2.Flash()
         try:
-            bdev = rp2.Flash()
-            try:
-                vfs = uos.VfsLfs2(bdev)
-                uos.mount(vfs, "/")
-            except OSError:
-                # 如果掛載失敗 (通常是第一次)，呼叫 FAT 初始化腳本
-                import _boot_fat
-                _boot_fat.init(bdev)
-        except Exception as e:
-            print("_boot.py mount failed:", e)
+            fs = vfs.VfsLfs2(bdev, progsize=256)
+        except:
+            # 如果掛載失敗，執行格式化 (mkfs)
+            vfs.VfsLfs2.mkfs(bdev, progsize=256)
+            fs = vfs.VfsLfs2(bdev, progsize=256)
+        
+        vfs.mount(fs, "/")
 
-        gc.collect()
+        # --- 3. 清理記憶體 ---
+        del vfs, bdev, fs, machine, rp2
         EOF
 
         # 3. 建立清單
