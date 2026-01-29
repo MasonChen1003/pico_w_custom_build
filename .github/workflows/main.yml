@@ -78,7 +78,8 @@ jobs:
         EOF
 
         # 3. 建立清單
-        echo 'include("$(PORT_DIR)/boards/manifest.py")' > my_manifest.py
+        # ✅ 正確的寫法 (引入 Pico W 專屬清單，這才會包含 ssl, aioble, urequests)
+        echo 'include("$(PORT_DIR)/boards/RPI_PICO_W/manifest.py")' > my_manifest.py        
         echo 'freeze("${{ github.workspace }}/custom_lib")' >> my_manifest.py
         
     # 5. 編譯 mpy-cross (編譯器)
