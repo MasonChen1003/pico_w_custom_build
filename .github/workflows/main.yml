@@ -88,6 +88,13 @@ jobs:
         cd micropython
         git submodule update --init lib/pico-sdk lib/cyw43-driver lib/lwip lib/mbedtls lib/micropython-lib lib/tinyusb lib/btstack
         make -C mpy-cross
+    # ✨ 新增步驟：破解 Pico W 藍牙特徵值數量限制 ✨
+    - name: 🛠️ Hack BLE ATT DB Limit
+      run: |
+        # 直接修改 btstack 的共用設定檔，將 512 Bytes 加大到 1024 Bytes
+        # 這能讓 Pico W 容納 LinkIt Remote 所需的 12 個特徵值
+        sed -i 's/MAX_ATT_DB_SIZE 512/MAX_ATT_DB_SIZE 1024/g' micropython/extmod/btstack/btstack_config_common.h
+        echo "✅ BLE Limit successfully increased to 1024 bytes"
 
     # 6. 編譯韌體 (驅動 + 指定字型)
     - name: Build Firmware
